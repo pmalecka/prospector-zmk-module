@@ -5,6 +5,10 @@
 #include <zephyr/drivers/led.h>
 #include <zephyr/sys/printk.h>
 
+#include <zmk/usb.h>
+#include <zmk/display.h>
+#include <zephyr/drivers/display.h>
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(als, 4);
 
@@ -12,6 +16,9 @@ static const struct device *pwm_leds_dev = DEVICE_DT_GET_ONE(pwm_leds);
 #define DISP_BL DT_NODE_CHILD_IDX(DT_NODELABEL(disp_bl))
 
 #ifdef CONFIG_PROSPECTOR_USE_AMBIENT_LIGHT_SENSOR
+const struct device *display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+
+static bool suspended;
 
 static uint8_t current_brightness = 100;
 
@@ -31,7 +38,101 @@ static uint8_t current_brightness = 100;
 #define BURST_SAMPLE_TIMEOUT             10
 #define BURST_SAMPLE_CONSECUTIVE         3
 
+// TODO: rewrite this, so that it supports also mode, where the ambient light sensor
+// is not available. Consider using ZMK events, that will let this thread know, that
+// usb connection status has changed, instead of cramming 2 things into 1 file ;-)
+uint8_t get_usb_suspend_state() {
+
+    enum usb_dc_status_code dc_status = zmk_usb_get_status();
+
+    switch (dc_status) {
+        case USB_DC_RESET:
+            LOG_INF("Prospector USB handler: Device reset");
+            suspended = false;
+            return 0;
+            break;
+        case USB_DC_DISCONNECTED:
+            LOG_INF("Prospector USB handler: Device disconnected");
+            suspended = false;
+            return 0;
+
+            break;
+        case USB_DC_SUSPEND:
+            LOG_INF("Prospector USB handler: Device suspended");
+            suspended = true;
+            return 1;
+            break;
+        case USB_DC_RESUME:
+            if (suspended) {
+                LOG_INF("Prospector USB handler: Device resumed from sleep");
+                suspended = false;
+                return 0;
+                
+            } else {
+                LOG_INF("Prospector USB handler: Device resumed spuriously");
+            }
+            break;
+        default:
+            LOG_INF("Prospector USB handler: Other event '%d'", dc_status);
+            break;
+    }
+
+    return -EAGAIN;
+}
+
+// TODO: add debounce for these suspend events..
+// K_WORK_DELAYABLE_DEFINE(sleep_debounce_work, sleep_debounce_fn);
+// static bool host_sleep_pending;
+
+// static void handle_host_sleep(bool sleep) {
+
+//     if(sleep) {
+//         display_blanking_on(display);
+//     } else {
+//         display_blanking_off(display);
+//     }
+// }
+
+// static void sleep_debounce_fn(struct k_work *work) {
+//     host_sleep_pending = false;
+//     handle_host_sleep(nrfx_usbd_bus_suspend_check());
+// }
+
+// void usb_host_status_cb(enum usb_dc_status_code status, const uint8_t *param) {
+//     switch(status) {
+//     case USB_DC_SUSPEND:
+//         if(!host_sleep_pending) {
+//             k_work_reschedule(&sleep_debounce_work, 
+//                             K_MSEC(CONFIG_PROSPECTOR_SLEEP_DEBOUNCE_MS));
+//             host_sleep_pending = true;
+//         }
+//         break;
+//     case USB_DC_RESUME:
+//         k_work_cancel_delayable(&sleep_debounce_work);
+//         host_sleep_pending = false;
+//         handle_host_sleep(false);
+//         break;
+//     default: break;
+//     }
+// }
+
+void handle_host_sleep(uint8_t usb_suspend_state) {
+    switch(usb_suspend_state) {
+        case 0:
+            display_blanking_off(display);
+            led_on(pwm_leds_dev, DISP_BL);
+            break;
+        case 1:
+            display_blanking_on(display);
+            led_off(pwm_leds_dev, DISP_BL);
+            break;
+        default:
+            break;
+    }
+}
+
 uint8_t map_light_to_pwm(int32_t sensor_reading) {
+    
     // Handle invalid/error readings
     if (sensor_reading < SENSOR_MIN) {
         return PWM_MIN;  // Default to minimum brightness on error
@@ -81,6 +182,8 @@ extern void als_thread(void *d0, void *d1, void *d2) {
     ARG_UNUSED(d1);
     ARG_UNUSED(d2);
 
+    LOG_INF("ALS THREAD STARTED!!!");
+
     const struct device *dev;
     struct sensor_value intensity;
     uint8_t mapped_brightness;
@@ -96,6 +199,12 @@ extern void als_thread(void *d0, void *d1, void *d2) {
 
         k_msleep(NORMAL_SAMPLE_SLEEP_MS);
 
+        uint8_t usb_suspend_status = get_usb_suspend_state();
+        handle_host_sleep();
+        if (usb_suspend_status == 1) {
+            LOG_INF("USB is suspended, skipping brightness adjustment");
+            continue;
+        }
 
         if (sensor_sample_fetch(dev)) {
             LOG_ERR("sensor_sample fetch failed\n");

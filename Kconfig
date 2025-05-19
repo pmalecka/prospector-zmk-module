@@ -15,3 +15,13 @@ config PROSPECTOR_FIXED_BRIGHTNESS
     default 50
     range 1 100
     depends on !PROSPECTOR_USE_AMBIENT_LIGHT_SENSOR
+
+config PROSPECTOR_DISPLAY_SLEEP
+    bool "Enable display sleep on USB host suspend"
+    default y
+
+config PROSPECTOR_SLEEP_DEBOUNCE_MS
+    int "Host sleep detection debounce time (ms)"
+    default 2000
+    range 500 5000
+    depends on PROSPECTOR_DISPLAY_SLEEP
