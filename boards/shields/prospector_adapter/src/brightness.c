@@ -44,12 +44,12 @@ void control_display(bool should_be_on) {
         // turn on the display and the backlight
         LOG_DBG("Prospector USB handler: Turning display ON");
         display_blanking_off(display);
-        // led_on(pwm_leds_dev, DISP_BL);
         led_set_brightness(pwm_leds_dev, DISP_BL, current_brightness);
     } else {
         // turn off the display and the backlight
         LOG_DBG("Prospector USB handler: Turning display OFF");
         display_blanking_on(display);
+        // need to turn the leds fully off, setting brightness to 0 doesn't work..
         led_off(pwm_leds_dev, DISP_BL);
     }
 }
