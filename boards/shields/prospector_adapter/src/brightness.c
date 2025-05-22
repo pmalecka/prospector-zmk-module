@@ -38,16 +38,16 @@ static uint8_t current_brightness = 100;
 #define BURST_SAMPLE_TIMEOUT             10
 #define BURST_SAMPLE_CONSECUTIVE         3
 
-void control_display(bool turn_off) {
+void control_display(bool should_be_on) {
 
-    if(turn_off) {
-        // turn off the display and the backlight
-        display_blanking_on(display);
-        led_off(pwm_leds_dev, DISP_BL);
-    } else {
+    if(should_be_on) {
         // turn on the display and the backlight
         display_blanking_off(display);
         led_on(pwm_leds_dev, DISP_BL);
+    } else {
+        // turn off the display and the backlight
+        display_blanking_on(display);
+        led_off(pwm_leds_dev, DISP_BL);
     }
 }
 
