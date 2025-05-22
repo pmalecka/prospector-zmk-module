@@ -120,7 +120,7 @@ void handle_host_sleep(uint8_t usb_suspend_state) {
     switch(usb_suspend_state) {
         case 0:
             display_blanking_off(display);
-            led_on(pwm_leds_dev, DISP_BL);
+            // led_on(pwm_leds_dev, DISP_BL);
             break;
         case 1:
             display_blanking_on(display);
