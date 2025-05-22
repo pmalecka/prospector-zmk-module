@@ -69,6 +69,7 @@ uint8_t get_usb_suspend_state() {
                 return 0;
                 
             } else {
+                suspended = false;
                 LOG_INF("Prospector USB handler: Device resumed spuriously");
                 return 0;
             }
