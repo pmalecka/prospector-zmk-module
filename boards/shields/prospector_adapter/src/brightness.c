@@ -200,7 +200,7 @@ extern void als_thread(void *d0, void *d1, void *d2) {
         k_msleep(NORMAL_SAMPLE_SLEEP_MS);
 
         uint8_t usb_suspend_status = get_usb_suspend_state();
-        handle_host_sleep();
+        handle_host_sleep(usb_suspend_status);
         if (usb_suspend_status == 1) {
             LOG_INF("USB is suspended, skipping brightness adjustment");
             continue;
