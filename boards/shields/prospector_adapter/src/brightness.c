@@ -42,10 +42,12 @@ void control_display(bool should_be_on) {
 
     if(should_be_on) {
         // turn on the display and the backlight
+        LOG_DBG("Prospector USB handler: Turning display ON");
         display_blanking_off(display);
         led_on(pwm_leds_dev, DISP_BL);
     } else {
         // turn off the display and the backlight
+        LOG_DBG("Prospector USB handler: Turning display OFF");
         display_blanking_on(display);
         led_off(pwm_leds_dev, DISP_BL);
     }
