@@ -38,40 +38,47 @@ static uint8_t current_brightness = 100;
 #define BURST_SAMPLE_TIMEOUT             10
 #define BURST_SAMPLE_CONSECUTIVE         3
 
+void control_display(bool turn_off) {
+
+    if(turn_off) {
+        // turn off the display and the backlight
+        display_blanking_on(display);
+        led_off(pwm_leds_dev, DISP_BL);
+    } else {
+        // turn on the display and the backlight
+        display_blanking_off(display);
+        led_on(pwm_leds_dev, DISP_BL);
+    }
+}
+
 // TODO: rewrite this, so that it supports also mode, where the ambient light sensor
 // is not available. Consider using ZMK events, that will let this thread know, that
 // usb connection status has changed, instead of cramming 2 things into 1 file ;-)
-uint8_t get_usb_suspend_state() {
+void handle_usb_suspend_state() {
 
     enum usb_dc_status_code dc_status = zmk_usb_get_status();
+
+    uint8_t should_be_suspended = -EAGAIN;
 
     switch (dc_status) {
         case USB_DC_RESET:
             LOG_INF("Prospector USB handler: Device reset");
-            suspended = false;
-            return 0;
+            should_be_suspended = 0;
             break;
         case USB_DC_DISCONNECTED:
             LOG_INF("Prospector USB handler: Device disconnected");
-            suspended = false;
-            return 0;
-
+            should_be_suspended = 0;
             break;
         case USB_DC_SUSPEND:
             LOG_INF("Prospector USB handler: Device suspended");
-            suspended = true;
-            return 1;
+            should_be_suspended = 1;
             break;
         case USB_DC_RESUME:
             if (suspended) {
                 LOG_INF("Prospector USB handler: Device resumed from sleep");
-                suspended = false;
-                return 0;
-                
+                should_be_suspended = 0;
             } else {
-                suspended = false;
-                LOG_INF("Prospector USB handler: Device resumed spuriously");
-                return 0;
+                LOG_DBG("Prospector USB handler: Device resumed spuriously");
             }
             break;
         default:
@@ -79,7 +86,19 @@ uint8_t get_usb_suspend_state() {
             break;
     }
 
-    return -EAGAIN;
+    // TODO: refactor this spaghetti :/
+    // figure out if the display should be turned off or on
+    if (suspended && should_be_suspended == 0) {
+        // if the display was suspended previously and now it should not be suspended (should be ON)
+        // then turn it ON
+        control_display(true);
+        suspended = false;
+    } else if (!suspended && should_be_suspended == 1) {
+        // if the display was NOT suspended previously and now it should be suspended (should be OFF)
+        // then turn it OFF
+        control_display(false);
+        suspended = true;
+    }
 }
 
 // TODO: add debounce for these suspend events..
@@ -117,21 +136,6 @@ uint8_t get_usb_suspend_state() {
 //     default: break;
 //     }
 // }
-
-void handle_host_sleep(uint8_t usb_suspend_state) {
-    switch(usb_suspend_state) {
-        case 0:
-            display_blanking_off(display);
-            led_on(pwm_leds_dev, DISP_BL);
-            break;
-        case 1:
-            display_blanking_on(display);
-            led_off(pwm_leds_dev, DISP_BL);
-            break;
-        default:
-            break;
-    }
-}
 
 uint8_t map_light_to_pwm(int32_t sensor_reading) {
     
@@ -201,9 +205,13 @@ extern void als_thread(void *d0, void *d1, void *d2) {
 
         k_msleep(NORMAL_SAMPLE_SLEEP_MS);
 
-        uint8_t usb_suspend_status = get_usb_suspend_state();
-        handle_host_sleep(usb_suspend_status);
-        if (usb_suspend_status == 1) {
+        // the handle_usb_suspend_state function is only interested in the transitions, when the
+        // host wakes up from sleep and when the host goes to sleep. It shouldn't run
+        // continuously, as this practically circumvents the als autobrightness..
+        handle_usb_suspend_state();
+        // the als autobrightness thread needs to know, whether the host is asleep or not
+        // and it needs to know this on a continuous basis.. 
+        if (suspended) {
             LOG_INF("USB is suspended, skipping brightness adjustment");
             continue;
         }
