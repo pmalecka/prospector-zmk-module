@@ -100,7 +100,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     char *ptr = layer_names_buffer;
 
     for (int i = 0; i < ZMK_KEYMAP_LAYERS_LEN; i++) {
-        const char *layer_name = zmk_keymap_layer_name(zmk_keymap_layer_name(i));
+        const char *layer_name = zmk_keymap_layer_name(i);
         if (layer_name) {
             if (i > 0) {
                 strcat(ptr, "\n");
