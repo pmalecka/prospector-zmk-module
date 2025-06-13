@@ -85,7 +85,7 @@ void handle_usb_suspend_state() {
             }
             break;
         default:
-            LOG_INF("Prospector USB handler: Other event '%d'", dc_status);
+            LOG_DBG("Prospector USB handler: Other event '%d'", dc_status);
             break;
     }
 
