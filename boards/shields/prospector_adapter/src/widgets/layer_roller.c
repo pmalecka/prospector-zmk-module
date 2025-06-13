@@ -100,32 +100,32 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     char *ptr = layer_names_buffer;
 
     for (int i = 0; i < ZMK_KEYMAP_LAYERS_LEN; i++) {
-        const char *layer_name = zmk_keymap_layer_name(zmk_keymap_layer_index_to_id(i));
-        if (layer_name) {
-            if (i > 0) {
-                strcat(ptr, "\n");
-                ptr += strlen(ptr);
-            }
+//         const char *layer_name = zmk_keymap_layer_name(zmk_keymap_layer_index_to_id(i));
+//         if (layer_name) {
+//             if (i > 0) {
+//                 strcat(ptr, "\n");
+//                 ptr += strlen(ptr);
+//             }
 
-            if (layer_name && *layer_name) {
-#if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
-                while (*layer_name) {
-                    *ptr = toupper((unsigned char)*layer_name);
-                    ptr++;
-                    layer_name++;
-                }
-                *ptr = '\0';
-#else
-                strcat(ptr, layer_name);
-                ptr += strlen(layer_name);
-#endif
-            } else {
+//             if (layer_name && *layer_name) {
+// #if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
+//                 while (*layer_name) {
+//                     *ptr = toupper((unsigned char)*layer_name);
+//                     ptr++;
+//                     layer_name++;
+//                 }
+//                 *ptr = '\0';
+// #else
+//                 strcat(ptr, layer_name);
+//                 ptr += strlen(layer_name);
+// #endif
+//             } else {
                 // Just use the number for unnamed layers
                 char index_str[12];
                 snprintf(index_str, sizeof(index_str), "%d", i);
                 strcat(ptr, index_str);
                 ptr += strlen(index_str);
-            }
+            // }
         }
     }
 
